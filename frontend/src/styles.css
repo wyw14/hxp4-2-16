@@ -406,6 +406,141 @@ body {
   100% { transform: scale(1); }
 }
 
+.timeline-empty {
+  text-align: center;
+  color: #6a6a7a;
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.timeline-list {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.timeline-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.timeline-item.timeline-clickable {
+  cursor: pointer;
+}
+
+.timeline-item.timeline-clickable:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.timeline-item.timeline-clickable::after {
+  content: '📍';
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.timeline-item.timeline-clickable:hover::after {
+  opacity: 0.7;
+}
+
+.timeline-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.timeline-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-desc {
+  font-size: 13px;
+  color: #d0d0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-meta {
+  font-size: 11px;
+  color: #6a6a7a;
+  margin-top: 2px;
+}
+
+.timeline-item.timeline-spread .timeline-icon {
+  filter: none;
+}
+
+.timeline-item.timeline-undo {
+  opacity: 0.7;
+}
+
+.timeline-item.timeline-undo .timeline-desc {
+  text-decoration: line-through;
+  color: #8a8a9a;
+}
+
+.timeline-item.timeline-purify .timeline-desc {
+  color: #a78bfa;
+}
+
+.timeline-item.timeline-connect_nutrient .timeline-desc {
+  color: #c68642;
+  font-weight: 600;
+}
+
+.timeline-item.timeline-win .timeline-desc {
+  color: #7ed957;
+  font-weight: 700;
+}
+
+.timeline-item.timeline-win {
+  background: rgba(126, 217, 87, 0.1);
+  border: 1px solid rgba(126, 217, 87, 0.2);
+}
+
+.hex-highlight-cell {
+  animation: highlightPulse 1.5s ease-out forwards;
+}
+
+@keyframes highlightPulse {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 960px) {
   .game-container {
     flex-direction: column;

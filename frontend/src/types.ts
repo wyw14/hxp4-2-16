@@ -33,6 +33,17 @@ export interface GameState {
   updatedAt: number;
 }
 
+export type TimelineAction = 'spread' | 'undo' | 'purify' | 'connect_nutrient' | 'win';
+
+export interface TimelineEntry {
+  id: number;
+  action: TimelineAction;
+  step: number;
+  coords: HexCoord[];
+  description: string;
+  timestamp: number;
+}
+
 export interface ApiResponse<T = void> {
   success: boolean;
   data?: T;

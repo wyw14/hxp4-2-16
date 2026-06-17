@@ -1,5 +1,5 @@
 import './styles.css';
-import { GameState, HexCoord, HexType } from './types';
+import { GameState, HexCoord, HexType, TimelineEntry, TimelineAction } from './types';
 import { HexGridRenderer } from './hexGrid';
 import { createGame, getGame, extendMycelium, undoMove, resetGame, findPath } from './api';
 import { coordKey, findPathAStar, PixelCoord } from './hexUtils';
@@ -21,6 +21,8 @@ export class FungiGame {
   private messageTimeout: any = null;
   private isProcessing = false;
   private previewPathCoord: HexCoord | null = null;
+  private timeline: TimelineEntry[] = [];
+  private timelineIdCounter = 0;
 
   constructor() {
     const hexContainer = document.getElementById('hex-container')!;
@@ -41,6 +43,23 @@ export class FungiGame {
   private initUI(): void {
     this.renderPanel();
     this.startNewGame(this.selectedLevel);
+  }
+
+  private addTimelineEntry(action: TimelineAction, coords: HexCoord[], description: string): void {
+    this.timeline.push({
+      id: ++this.timelineIdCounter,
+      action,
+      step: this.gameState?.steps ?? 0,
+      coords,
+      description,
+      timestamp: Date.now(),
+    });
+  }
+
+  private handleTimelineEntryClick(entry: TimelineEntry): void {
+    if (entry.coords.length > 0) {
+      this.hexGrid.highlightCells(entry.coords, 1500);
+    }
   }
 
   private renderPanel(): void {
@@ -74,6 +93,9 @@ export class FungiGame {
 
       const legendSection = this.createLegendSection();
       this.ui.panelContainer.appendChild(legendSection);
+
+      const timelineSection = this.createTimelineSection();
+      this.ui.panelContainer.appendChild(timelineSection);
     }
 
     if (this.gameState?.status === 'won') {
@@ -222,6 +244,64 @@ export class FungiGame {
     return section;
   }
 
+  private createTimelineSection(): HTMLElement {
+    const section = document.createElement('div');
+    section.innerHTML = `<div class="section-title">操作时间线</div>`;
+
+    if (this.timeline.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'timeline-empty';
+      empty.textContent = '暂无操作记录';
+      section.appendChild(empty);
+      return section;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'timeline-list';
+
+    const reversed = [...this.timeline].reverse();
+
+    for (const entry of reversed) {
+      const item = document.createElement('div');
+      item.className = `timeline-item timeline-${entry.action}`;
+
+      const icon = this.getTimelineIcon(entry.action);
+      const timeStr = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+
+      item.innerHTML = `
+        <div class="timeline-icon">${icon}</div>
+        <div class="timeline-content">
+          <div class="timeline-desc">${entry.description}</div>
+          <div class="timeline-meta">第 ${entry.step} 步 · ${timeStr}</div>
+        </div>
+      `;
+
+      if (entry.coords.length > 0) {
+        item.classList.add('timeline-clickable');
+        item.addEventListener('click', () => this.handleTimelineEntryClick(entry));
+      }
+
+      list.appendChild(item);
+    }
+
+    section.appendChild(list);
+    return section;
+  }
+
+  private getTimelineIcon(action: TimelineAction): string {
+    switch (action) {
+      case 'spread': return '🍄';
+      case 'undo': return '↩️';
+      case 'purify': return '✨';
+      case 'connect_nutrient': return '🪵';
+      case 'win': return '🎉';
+    }
+  }
+
   private showWinModal(): void {
     if (document.querySelector('.win-modal')) return;
 
@@ -287,6 +367,7 @@ export class FungiGame {
   private async startNewGame(level: number): Promise<void> {
     this.setProcessing(true);
     this.showMessage('正在生成新地图...', 'info');
+    this.timeline = [];
 
     try {
       this.gameState = await createGame(level);
@@ -315,15 +396,28 @@ export class FungiGame {
     this.setProcessing(true);
 
     try {
+      const prevConnected = [...(this.gameState?.connectedNutrients ?? [])];
       this.gameState = await extendMycelium(this.gameState.id, coord);
       this.hexGrid.setGameState(this.gameState);
       this.hexGrid.showPathPreview(null);
       this.previewPathCoord = null;
 
+      const cellName = this.getCellDisplayName(cell);
+
       if (this.gameState.status === 'won') {
+        this.addTimelineEntry('spread', [coord], `蔓延至 ${cellName}`);
+        const newlyConnected = this.gameState.connectedNutrients.filter(n => !prevConnected.includes(n));
+        if (newlyConnected.length > 0) {
+          this.addTimelineEntry('connect_nutrient', [coord], '连接营养源');
+        }
+        this.addTimelineEntry('win', this.gameState.myceliumCells, '🎉 通关！');
         this.showMessage('🎊 恭喜！成功连接所有营养源！', 'success');
       } else if (cell.type === HexType.NUTRIENT && cell.nutrientId && this.gameState.connectedNutrients.includes(cell.nutrientId)) {
+        this.addTimelineEntry('spread', [coord], `蔓延至 ${cellName}`);
+        this.addTimelineEntry('connect_nutrient', [coord], '连接营养源');
         this.showMessage('✅ 成功连接一个营养源！', 'success');
+      } else {
+        this.addTimelineEntry('spread', [coord], `蔓延至 ${cellName}`);
       }
 
       this.renderPanel();
@@ -390,9 +484,11 @@ export class FungiGame {
     this.setProcessing(true);
 
     try {
+      const undoneCoord = this.gameState.myceliumCells[this.gameState.myceliumCells.length - 1];
       this.gameState = await undoMove(this.gameState.id);
       this.hexGrid.setGameState(this.gameState);
       this.hexGrid.showPathPreview(null);
+      this.addTimelineEntry('undo', undoneCoord ? [undoneCoord] : [], '撤销上一步蔓延');
       this.showMessage('↩️ 已撤销上一步', 'info');
       this.renderPanel();
     } catch (e) {
@@ -411,6 +507,7 @@ export class FungiGame {
       this.gameState = await resetGame(this.gameState.id);
       this.hexGrid.setGameState(this.gameState);
       this.hexGrid.showPathPreview(null);
+      this.timeline = [];
       this.showMessage('🔄 关卡已重置', 'info');
       this.renderPanel();
     } catch (e) {

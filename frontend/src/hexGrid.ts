@@ -299,6 +299,43 @@ export class HexGridRenderer {
     this.svg.appendChild(this.pathPreviewGroup);
   }
 
+  highlightCells(coords: HexCoord[], duration: number = 1500): void {
+    this.clearHighlight();
+
+    const highlightGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    highlightGroup.setAttribute('class', 'hex-highlight-group');
+    highlightGroup.setAttribute('pointer-events', 'none');
+
+    for (const coord of coords) {
+      const pixel = hexToPixel(coord, this.size);
+      const cx = pixel.x + this.offsetX;
+      const cy = pixel.y + this.offsetY;
+
+      const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      shape.setAttribute('d', hexCornersPath({ x: cx, y: cy }, this.size));
+      shape.setAttribute('fill', 'rgba(255, 235, 59, 0.35)');
+      shape.setAttribute('stroke', '#ffeb3b');
+      shape.setAttribute('stroke-width', '3');
+      shape.setAttribute('class', 'hex-highlight-cell');
+      highlightGroup.appendChild(shape);
+    }
+
+    this.svg.appendChild(highlightGroup);
+
+    setTimeout(() => {
+      if (this.svg.contains(highlightGroup)) {
+        this.svg.removeChild(highlightGroup);
+      }
+    }, duration);
+  }
+
+  clearHighlight(): void {
+    const existing = this.svg.querySelector('.hex-highlight-group');
+    if (existing) {
+      this.svg.removeChild(existing);
+    }
+  }
+
   destroy(): void {
     if (this.svg.parentNode) {
       this.svg.parentNode.removeChild(this.svg);
